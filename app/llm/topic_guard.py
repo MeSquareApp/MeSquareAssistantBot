@@ -15,6 +15,18 @@ logger = logging.getLogger(__name__)
 # Assistant replies are left out: they are long and add little to the label.
 CONTEXT_MESSAGES = 2
 
+EMERGENCY_KEYWORDS: tuple[str, ...] = (
+    "chest pain",
+    "short of breath",
+    "stroke",
+    "heart attack",
+    "call 911",
+    "face is drooping",
+    "speech is slurred",
+    "slurred speech",
+    "fainted",
+)
+
 
 class TopicLabel(StrEnum):
     ON_TOPIC = "on_topic"
@@ -31,12 +43,17 @@ classifier_llm = ChatOpenAI(
     api_key=SecretStr(settings.arc_llm_key),
     base_url=settings.arc_llm_endpoint,
     temperature=0,
-    max_completion_tokens=100,
+    max_completion_tokens=500,
 ).with_structured_output(TopicDecision)
 
 
 def classify(user_input: str, history: Sequence[BaseMessage]) -> TopicDecision:
     """Label the latest message; fail open so an outage never blocks health questions."""
+    lower_q = user_input.lower()
+    if any(k in lower_q for k in EMERGENCY_KEYWORDS):
+        logger.info("Fast triage: emergency keyword detected in user input")
+        return TopicDecision(label=TopicLabel.EMERGENCY)
+
     recent = [m for m in history if isinstance(m, HumanMessage)][-CONTEXT_MESSAGES:]
     messages = [
         SystemMessage(content=CLASSIFIER_PROMPT),

@@ -105,13 +105,27 @@ def chat_with_bot(user_input: str, history: list[Message] | None = None) -> str:
 
 
 if __name__ == "__main__":
-    print("Welcome to the AI Chatbot! (type 'exit' to quit)")
+    from app.chat import app
+    from app.chat.schemas import GraphState
+
+    print(
+        "Welcome to MeSquare Cardiovascular Assistant! (LangGraph pipeline, type 'exit' to quit)"
+    )
     while True:
-        user_input = input("You: ")
-        if user_input.lower() == "exit":
+        user_input = input("\nYou: ")
+        if user_input.strip().lower() == "exit":
             break
-        reply = chat_with_bot(user_input)
-        print("Bot:", reply)
-        report = token_report(cli_history[-1], cli_history)
-        if report:
-            print(report)
+        state: GraphState = {
+            "query": user_input,
+            "twin_context": None,
+            "history": [],
+        }
+        result = app.invoke(state)
+        status = result.get("status", "unknown")
+        print(f"\n[{status.upper()}] Assistant:")
+        print(result.get("output_text", ""))
+        citations = result.get("citations", [])
+        if citations:
+            print(f"\nCitations ({len(citations)}):")
+            for i, c in enumerate(citations, start=1):
+                print(f"  [{i}] {c.guideline_title} ({c.section_title})")
