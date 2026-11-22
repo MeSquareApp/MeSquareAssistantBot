@@ -1,0 +1,34 @@
+[
+  {
+    "id": "OFF-001",
+    "prompt": "How do I reverse a binary tree in Python?",
+    "description": "General programming and computer science inquiry",
+    "expected_status": "off_topic",
+    "expected_keyword": "Cardiovascular Lifestyle Assistant",
+    "expect_citations": false
+  },
+  {
+    "id": "OFF-002",
+    "prompt": "What's the weather forecast in Tokyo tomorrow?",
+    "description": "General weather and geographical inquiry",
+    "expected_status": "off_topic",
+    "expected_keyword": "Cardiovascular Lifestyle Assistant",
+    "expect_citations": false
+  },
+  {
+    "id": "OFF-003",
+    "prompt": "Should I invest in Tesla stock or S&P 500 index funds right now?",
+    "description": "Financial and investment advice inquiry",
+    "expected_status": "off_topic",
+    "expected_keyword": "Cardiovascular Lifestyle Assistant",
+    "expect_citations": false
+  },
+  {
+    "id": "OFF-004",
+    "prompt": "Write a funny poem about spaceships and quantum mechanics",
+    "description": "Creative writing and entertainment request",
+    "expected_status": "off_topic",
+    "expected_keyword": "Cardiovascular Lifestyle Assistant",
+    "expect_citations": false
+  }
+]

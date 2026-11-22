@@ -1,0 +1,26 @@
+[
+  {
+    "id": "LIFE-001",
+    "prompt": "My LDL is 168 and my AHA PREVENT score is 8.4%. What diet and fiber habits should I adopt?",
+    "description": "Lipid reduction dietary patterns and soluble fiber guidance",
+    "expected_status": "success",
+    "expected_keyword": "Guideline",
+    "expect_citations": true
+  },
+  {
+    "id": "LIFE-002",
+    "prompt": "My blood pressure is 138/88 mmHg. What lifestyle and sodium adjustments reduce systolic pressure?",
+    "description": "Hypertension lifestyle adjustments and DASH dietary guidance",
+    "expected_status": "success",
+    "expected_keyword": "Guideline",
+    "expect_citations": true
+  },
+  {
+    "id": "LIFE-003",
+    "prompt": "What aerobic exercise and physical activity habits are recommended by guidelines to reduce cardiovascular risk?",
+    "description": "Physical activity and exercise recommendations based on clinical guidelines",
+    "expected_status": "success",
+    "expected_keyword": "Guideline",
+    "expect_citations": true
+  }
+]
