@@ -9,14 +9,14 @@ from app.llm.topic_guard import TopicDecision, TopicLabel
 
 
 @pytest.fixture
-def main_llm(monkeypatch):
+def main_llm(monkeypatch: pytest.MonkeyPatch) -> MagicMock:
     fake = MagicMock()
     fake.invoke.return_value = AIMessage(content="LDL is a cholesterol carrier.")
     monkeypatch.setattr(chatbot, "llm", fake)
     return fake
 
 
-def set_label(monkeypatch, label: TopicLabel) -> None:
+def set_label(monkeypatch: pytest.MonkeyPatch, label: TopicLabel) -> None:
     decision = TopicDecision(label=label)
     monkeypatch.setattr(chatbot, "classify", lambda *_: decision)
 
@@ -25,7 +25,12 @@ def set_label(monkeypatch, label: TopicLabel) -> None:
     ("label", "reply"),
     [(TopicLabel.OFF_TOPIC, OFF_TOPIC_REPLY), (TopicLabel.EMERGENCY, EMERGENCY_REPLY)],
 )
-def test_blocked_labels_skip_main_llm(monkeypatch, main_llm, label, reply):
+def test_blocked_labels_skip_main_llm(
+    monkeypatch: pytest.MonkeyPatch,
+    main_llm: MagicMock,
+    label: TopicLabel,
+    reply: str,
+) -> None:
     set_label(monkeypatch, label)
     history = chatbot.new_history()
 
@@ -35,15 +40,22 @@ def test_blocked_labels_skip_main_llm(monkeypatch, main_llm, label, reply):
     assert history[-1].content == reply
 
 
-def test_on_topic_calls_main_llm(monkeypatch, main_llm):
+def test_on_topic_calls_main_llm(
+    monkeypatch: pytest.MonkeyPatch, main_llm: MagicMock
+) -> None:
     set_label(monkeypatch, TopicLabel.ON_TOPIC)
     history = chatbot.new_history()
 
-    assert chatbot.chat_with_bot("What is LDL?", history) == "LDL is a cholesterol carrier."
+    assert (
+        chatbot.chat_with_bot("What is LDL?", history)
+        == "LDL is a cholesterol carrier."
+    )
     main_llm.invoke.assert_called_once()
 
 
-def test_classifier_failure_fails_open(monkeypatch, main_llm):
+def test_classifier_failure_fails_open(
+    monkeypatch: pytest.MonkeyPatch, main_llm: MagicMock
+) -> None:
     broken = MagicMock()
     broken.invoke.side_effect = RuntimeError("endpoint down")
     monkeypatch.setattr(topic_guard, "classifier_llm", broken)
@@ -53,11 +65,16 @@ def test_classifier_failure_fails_open(monkeypatch, main_llm):
     main_llm.invoke.assert_called_once()
 
 
-def test_main_llm_gets_trimmed_history(monkeypatch, main_llm):
+def test_main_llm_gets_trimmed_history(
+    monkeypatch: pytest.MonkeyPatch, main_llm: MagicMock
+) -> None:
     set_label(monkeypatch, TopicLabel.ON_TOPIC)
     history = chatbot.new_history()
     for i in range(50):
-        history += [HumanMessage(content=f"question {i} " * 20), AIMessage(content="answer " * 50)]
+        history += [
+            HumanMessage(content=f"question {i} " * 20),
+            AIMessage(content="answer " * 50),
+        ]
 
     chatbot.chat_with_bot("What is LDL?", history)
 
@@ -67,7 +84,9 @@ def test_main_llm_gets_trimmed_history(monkeypatch, main_llm):
     assert len(sent) < len(history)
 
 
-def test_classifier_receives_recent_context_only(monkeypatch):
+def test_classifier_receives_recent_context_only(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     spy = MagicMock()
     spy.invoke.return_value = TopicDecision(label=TopicLabel.ON_TOPIC)
     monkeypatch.setattr(topic_guard, "classifier_llm", spy)

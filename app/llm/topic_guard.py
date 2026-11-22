@@ -1,9 +1,10 @@
 import logging
+from collections.abc import Sequence
 from enum import StrEnum
 
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
 
 from app.core.config import settings
 from app.llm.prompts import CLASSIFIER_PROMPT
@@ -27,14 +28,14 @@ class TopicDecision(BaseModel):
 
 classifier_llm = ChatOpenAI(
     model=settings.classifier_model,
-    api_key=settings.arc_llm_key,
+    api_key=SecretStr(settings.arc_llm_key),
     base_url=settings.arc_llm_endpoint,
     temperature=0,
-    max_tokens=100,
+    max_completion_tokens=100,
 ).with_structured_output(TopicDecision)
 
 
-def classify(user_input: str, history: list[BaseMessage]) -> TopicDecision:
+def classify(user_input: str, history: Sequence[BaseMessage]) -> TopicDecision:
     """Label the latest message; fail open so an outage never blocks health questions."""
     recent = [m for m in history if isinstance(m, HumanMessage)][-CONTEXT_MESSAGES:]
     messages = [

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import logging
 import re
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from docling.datamodel.base_models import InputFormat
 from docling.datamodel.pipeline_options import PdfPipelineOptions
@@ -51,13 +51,15 @@ def parse_filename_metadata(pdf_path: Path) -> GuidelineMetadata:
 
 def create_document_converter(do_ocr: bool = False) -> DocumentConverter:
     """Create a Docling converter optimized for digital PDFs.
-    
+
     Disabling OCR for native digital PDFs accelerates processing by 5x to 10x.
     """
     pipeline_options = PdfPipelineOptions()
     pipeline_options.do_ocr = do_ocr
     return DocumentConverter(
-        format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)}
+        format_options={
+            InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
+        }
     )
 
 
@@ -96,7 +98,9 @@ def chunk_markdown(
             continue
 
         header_keys = ["Header 1", "Header 2", "Header 3", "Header 4"]
-        found_headers = [doc.metadata[key] for key in header_keys if key in doc.metadata]
+        found_headers = [
+            doc.metadata[key] for key in header_keys if key in doc.metadata
+        ]
         section_title = " > ".join(found_headers) if found_headers else "General"
 
         chunk_id = f"{metadata.slug}_{metadata.year}_{index:04d}"
@@ -121,7 +125,9 @@ def embed_chunks(
     batch_size: int = 64,
 ) -> None:
     """Generate 2560-dimensional embeddings using ARC VT's Qwen3-Embedding-4B."""
-    logger.info("Generating embeddings using model=%s in batches of %d...", model, batch_size)
+    logger.info(
+        "Generating embeddings using model=%s in batches of %d...", model, batch_size
+    )
     for start in range(0, len(chunks), batch_size):
         batch = chunks[start : start + batch_size]
         texts = [chunk.content for chunk in batch]

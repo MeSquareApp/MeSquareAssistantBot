@@ -2,10 +2,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    database_url: str
-    arc_llm_key: str
-    arc_llm_endpoint: str
-    arc_llm_model: str
+    database_url: str = ""
+    arc_llm_key: str = ""
+    arc_llm_endpoint: str = ""
+    arc_llm_model: str = ""
     arc_llm_classifier_model: str | None = None
     arc_llm_context_tokens: int | None = None
     embedding_model: str = "Qwen3-Embedding-4B"

@@ -21,6 +21,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from openai import OpenAI
 from sqlalchemy import select, text
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.config import settings
 from app.core.db import SessionLocal, engine
@@ -66,14 +67,6 @@ class SearchResult(NamedTuple):
     chunk: RetrievedChunk
     similarity: float
 
-    # Support tuple indexing results[0][0] and results[0][1]
-    def __getitem__(self, item: int):
-        if item == 0:
-            return self.chunk
-        if item == 1:
-            return self.similarity
-        raise IndexError("SearchResult index out of range (0=chunk, 1=similarity)")
-
 
 def generate_query_embedding(
     query: str,
@@ -114,14 +107,17 @@ async def execute_similarity_search(
             plan_json = explain_res.scalar()
             if isinstance(plan_json, str):
                 import json
+
                 plan_json = json.loads(plan_json)
             if isinstance(plan_json, list) and plan_json:
                 db_execution_time_ms = float(plan_json[0].get("Execution Time", 0.0))
-        except Exception as exc:
+        except (SQLAlchemyError, RuntimeError, ValueError) as exc:
             logger.debug("Could not run EXPLAIN (ANALYZE): %s", exc)
 
         # 2. Execute the actual query to fetch rows and measure client round-trip latency
-        distance_expr = GuidelineChunk.embedding.cosine_distance(query_vector).label("distance")
+        distance_expr = GuidelineChunk.embedding.cosine_distance(query_vector).label(
+            "distance"
+        )
         similarity_expr = (1 - distance_expr).label("similarity")
 
         stmt = (
@@ -170,7 +166,9 @@ def validate_results(
     logger.info("--- Validating Acceptance Criteria ---")
 
     # Criterion 2: Minimum result count
-    assert len(results) >= 3, f"Failed: Retrieved fewer than 3 chunks (got {len(results)})."
+    assert len(results) >= 3, (
+        f"Failed: Retrieved fewer than 3 chunks (got {len(results)})."
+    )
     logger.info("✓ Criterion 2 Passed: Retrieved %d chunks (>= 3).", len(results))
 
     # Criterion 3: Semantic similarity threshold
@@ -178,7 +176,9 @@ def validate_results(
     assert top_similarity >= 0.70, (
         f"Failed: Top similarity {top_similarity:.4f} is below 0.70 threshold."
     )
-    logger.info("✓ Criterion 3 Passed: Top similarity is %.4f (>= 0.70).", top_similarity)
+    logger.info(
+        "✓ Criterion 3 Passed: Top similarity is %.4f (>= 0.70).", top_similarity
+    )
 
     # Criterion 4: Clinical domain correctness
     top_chunk = results[0][0]
@@ -204,17 +204,25 @@ def validate_results(
         assert len(content.strip()) >= 20, (
             f"Failed: Chunk {i} content too short ({len(content.strip())} chars)."
         )
-        assert "\xef\xbf\xbd" not in content, f"Failed: Chunk {i} contains replacement chars ()."
+        assert "\xef\xbf\xbd" not in content, (
+            f"Failed: Chunk {i} contains replacement chars ()."
+        )
         assert "\x00" not in content, f"Failed: Chunk {i} contains null bytes."
-    logger.info("✓ Criterion 5 Passed: All retrieved chunks have clean, valid Markdown text.")
+    logger.info(
+        "✓ Criterion 5 Passed: All retrieved chunks have clean, valid Markdown text."
+    )
 
     # Criterion 6: Latency budget
     latency_label = "Database execution time" if is_db_latency else "Query latency"
-    logger.info("%s: %.2f ms (Budget: %.2f ms)", latency_label, latency_ms, max_latency_ms)
+    logger.info(
+        "%s: %.2f ms (Budget: %.2f ms)", latency_label, latency_ms, max_latency_ms
+    )
     assert latency_ms <= max_latency_ms, (
         f"Failed: {latency_label} {latency_ms:.2f} ms exceeded budget of {max_latency_ms:.2f} ms."
     )
-    logger.info("✓ Criterion 6 Passed: %s %.2f ms is within budget.", latency_label, latency_ms)
+    logger.info(
+        "✓ Criterion 6 Passed: %s %.2f ms is within budget.", latency_label, latency_ms
+    )
 
 
 def print_results(
@@ -226,7 +234,9 @@ def print_results(
     print("\n" + "=" * 80)
     print("STEP 9: RAG RETRIEVAL VERIFICATION RESULTS")
     if db_latency_ms is not None:
-        print(f"Database Query Execution Time (PostgreSQL)   : {db_latency_ms:.2f} ms (Budget: 25.00 ms)")
+        print(
+            f"Database Query Execution Time (PostgreSQL)   : {db_latency_ms:.2f} ms (Budget: 25.00 ms)"
+        )
     print(f"Client Round-Trip Network Latency (Internet) : {client_latency_ms:.2f} ms")
     print("=" * 80)
 
@@ -319,8 +329,8 @@ async def main() -> None:
     except AssertionError as ae:
         logger.error("Step 9 Assertion Failure: %s", ae)
         sys.exit(1)
-    except Exception as exc:
-        logger.error("Step 9 Execution Error: %s", exc, exc_info=True)
+    except Exception:
+        logger.exception("Step 9 Execution Error")
         sys.exit(1)
     finally:
         await engine.dispose()

@@ -6,6 +6,7 @@ from langchain_core.messages import (
 )
 from langchain_core.messages.utils import count_tokens_approximately
 from langchain_openai import ChatOpenAI
+from pydantic import SecretStr
 
 from app.core.config import settings
 from app.llm.prompts import EMERGENCY_REPLY, OFF_TOPIC_REPLY, SYSTEM_PROMPT
@@ -13,10 +14,10 @@ from app.llm.topic_guard import TopicLabel, classify
 
 llm = ChatOpenAI(
     model=settings.arc_llm_model,
-    api_key=settings.arc_llm_key,
+    api_key=SecretStr(settings.arc_llm_key),
     base_url=settings.arc_llm_endpoint,
     temperature=0.7,
-    max_tokens=1000,
+    max_completion_tokens=1000,
 )
 
 # Approximate token budget of conversation sent to the main model each turn.
@@ -78,11 +79,7 @@ def token_report(message: Message, history: list[Message]) -> str | None:
     reasoning = (usage.get("output_token_details") or {}).get("reasoning")
     if reasoning:
         summary += f", reasoning {reasoning:,}"
-    return (
-        f"Tokens used: {used:,}\n"
-        f"Tokens left: {left}\n"
-        f"Token summary: {summary}"
-    )
+    return f"Tokens used: {used:,}\nTokens left: {left}\nToken summary: {summary}"
 
 
 def chat_with_bot(user_input: str, history: list[Message] | None = None) -> str:

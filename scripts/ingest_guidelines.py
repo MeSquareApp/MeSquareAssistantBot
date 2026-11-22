@@ -15,6 +15,7 @@ import logging
 import sys
 from pathlib import Path
 
+from docling.document_converter import DocumentConverter
 from openai import OpenAI
 
 # Ensure project root is in sys.path
@@ -42,7 +43,7 @@ logger = logging.getLogger("ingest_guidelines")
 
 async def ingest_file(
     pdf_path: Path,
-    converter,
+    converter: DocumentConverter,
     openai_client: OpenAI,
     dry_run: bool = False,
 ) -> int:
@@ -126,7 +127,7 @@ async def main() -> None:
                     openai_client=openai_client,
                     dry_run=args.dry_run,
                 )
-            except Exception as e:
+            except (RuntimeError, ValueError, OSError, TypeError) as e:
                 logger.error("Failed to ingest %s: %s", pdf.name, e)
                 failed_files.append((pdf, str(e)))
 

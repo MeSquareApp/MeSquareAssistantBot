@@ -44,7 +44,7 @@ def main() -> None:
         correct += ok
         mark = "ok  " if ok else "FAIL"
         print(f"{mark} expected={expected:<9} got={decision.label:<9} {prompt!r}")
-        if not ok:
+        if not ok and hasattr(decision, "reason"):
             print(f"     reason: {decision.reason}")
     print(f"\nAccuracy: {correct}/{len(CASES)} ({correct / len(CASES):.0%})")
 
