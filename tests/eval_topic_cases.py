@@ -4,7 +4,7 @@ Calls the ARC endpoint, so it is not part of the pytest suite:
     uv run python tests/eval_topic_cases.py
 """
 
-from mesquareassistantbot.topic_guard import TopicLabel, classify
+from app.llm.topic_guard import TopicLabel, classify
 
 ON, OFF, EMERGENCY = TopicLabel.ON_TOPIC, TopicLabel.OFF_TOPIC, TopicLabel.EMERGENCY
 

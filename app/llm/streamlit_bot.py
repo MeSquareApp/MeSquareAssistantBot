@@ -1,7 +1,7 @@
 import streamlit as st
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from mesquareassistantbot.chatbot import (
+from app.llm.chatbot import (
     Message,
     chat_with_bot,
     new_history,

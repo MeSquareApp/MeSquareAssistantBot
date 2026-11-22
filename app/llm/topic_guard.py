@@ -1,16 +1,12 @@
 import logging
-import os
 from enum import StrEnum
-from pathlib import Path
 
-from dotenv import load_dotenv
 from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel
 
-from mesquareassistantbot.prompts import CLASSIFIER_PROMPT
-
-load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+from app.core.config import settings
+from app.llm.prompts import CLASSIFIER_PROMPT
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +26,9 @@ class TopicDecision(BaseModel):
 
 
 classifier_llm = ChatOpenAI(
-    model=os.environ.get("ARC_LLM_CLASSIFIER_MODEL") or os.environ["ARC_LLM_MODEL"],
-    api_key=os.environ["ARC_LLM_KEY"],
-    base_url=os.environ["ARC_LLM_ENDPOINT"],
+    model=settings.classifier_model,
+    api_key=settings.arc_llm_key,
+    base_url=settings.arc_llm_endpoint,
     temperature=0,
     max_tokens=100,
 ).with_structured_output(TopicDecision)
