@@ -15,7 +15,7 @@ class GuidelineChunk(Base):
     """Represents a chunk of a clinical guideline in rag.guideline_chunks."""
 
     __tablename__ = "guideline_chunks"
-    __table_args__ = {"schema": "rag"}
+    __table_args__ = ({"schema": "rag"},)
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     chunk_id: Mapped[str] = mapped_column(String, unique=True, index=True)

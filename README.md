@@ -126,7 +126,7 @@ uv run python tests/eval_topic_cases.py
 | `app/model/guideline.py` | GuidelineChunk SQLAlchemy ORM model with `halfvec(2560)` |
 | `app/utils/pdf_chunk_handler.py` | Docling extraction, token chunking, and embedding pipeline |
 | `app/llm/prompts.py` | System prompt, classifier prompt and fixed replies |
-| `app/llm/topic_guard.py` | Topic classifier (on topic / off topic / emergency) |
+| `app/chat/nodes/topic_detector.py` | Topic classifier and emergency triage node |
 | `app/llm/chatbot.py` | Main model, history trimming, token report, terminal chat |
 | `app/llm/streamlit_bot.py` | Streamlit web UI |
 | `scripts/ingest_guidelines.py` | CLI orchestrator for guideline PDF ingestion |

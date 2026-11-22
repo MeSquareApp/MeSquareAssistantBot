@@ -6,17 +6,22 @@ from langchain_core.messages import (
 )
 from langchain_core.messages.utils import count_tokens_approximately
 from langchain_openai import ChatOpenAI
+from pydantic import SecretStr
 
+from app.chat.nodes.topic_detector import (
+    EMERGENCY_DISCLAIMER,
+    OFF_TOPIC_REFUSAL,
+    detect_topic,
+)
 from app.core.config import settings
-from app.llm.prompts import EMERGENCY_REPLY, OFF_TOPIC_REPLY, SYSTEM_PROMPT
-from app.llm.topic_guard import TopicLabel, classify
+from app.llm.prompts import SYSTEM_PROMPT
 
 llm = ChatOpenAI(
     model=settings.arc_llm_model,
-    api_key=settings.arc_llm_key,
+    api_key=SecretStr(settings.arc_llm_key),
     base_url=settings.arc_llm_endpoint,
     temperature=0.7,
-    max_tokens=1000,
+    max_completion_tokens=1000,
 )
 
 # Approximate token budget of conversation sent to the main model each turn.
@@ -35,11 +40,6 @@ CONTEXT_TOKENS = {
     "DeepSeek-V4.1-Flash": 1_048_576,
     "DeepSeek-V4.1-Flash-thinking-low": 1_048_576,
     "DeepSeek-V4.1-Flash-thinking-max": 1_048_576,
-}
-
-CANNED_REPLIES = {
-    TopicLabel.OFF_TOPIC: OFF_TOPIC_REPLY,
-    TopicLabel.EMERGENCY: EMERGENCY_REPLY,
 }
 
 
@@ -78,22 +78,23 @@ def token_report(message: Message, history: list[Message]) -> str | None:
     reasoning = (usage.get("output_token_details") or {}).get("reasoning")
     if reasoning:
         summary += f", reasoning {reasoning:,}"
-    return (
-        f"Tokens used: {used:,}\n"
-        f"Tokens left: {left}\n"
-        f"Token summary: {summary}"
-    )
+    return f"Tokens used: {used:,}\nTokens left: {left}\nToken summary: {summary}"
 
 
 def chat_with_bot(user_input: str, history: list[Message] | None = None) -> str:
     if history is None:
         history = cli_history
-    decision = classify(user_input, history)
+    decision = detect_topic({"query": user_input})
     history.append(HumanMessage(content=user_input))
-    canned = CANNED_REPLIES.get(decision.label)
-    if canned:
-        history.append(AIMessage(content=canned))
-        return canned
+    topic = decision.get("topic")
+    if topic == "emergency":
+        reply = str(decision.get("output_text", EMERGENCY_DISCLAIMER))
+        history.append(AIMessage(content=reply))
+        return reply
+    if topic == "off_topic":
+        reply = str(decision.get("output_text", OFF_TOPIC_REFUSAL))
+        history.append(AIMessage(content=reply))
+        return reply
     context = trim_messages(
         history,
         max_tokens=HISTORY_TOKEN_BUDGET,
@@ -108,13 +109,27 @@ def chat_with_bot(user_input: str, history: list[Message] | None = None) -> str:
 
 
 if __name__ == "__main__":
-    print("Welcome to the AI Chatbot! (type 'exit' to quit)")
+    from app.chat import app
+    from app.chat.schemas import GraphState
+
+    print(
+        "Welcome to MeSquare Cardiovascular Assistant! (LangGraph pipeline, type 'exit' to quit)"
+    )
     while True:
-        user_input = input("You: ")
-        if user_input.lower() == "exit":
+        user_input = input("\nYou: ")
+        if user_input.strip().lower() == "exit":
             break
-        reply = chat_with_bot(user_input)
-        print("Bot:", reply)
-        report = token_report(cli_history[-1], cli_history)
-        if report:
-            print(report)
+        state: GraphState = {
+            "query": user_input,
+            "twin_context": None,
+            "history": [],
+        }
+        result = app.invoke(state)
+        status = result.get("status", "unknown")
+        print(f"\n[{status.upper()}] Assistant:")
+        print(result.get("output_text", ""))
+        citations = result.get("citations", [])
+        if citations:
+            print(f"\nCitations ({len(citations)}):")
+            for i, c in enumerate(citations, start=1):
+                print(f"  [{i}] {c.guideline_title} ({c.section_title})")

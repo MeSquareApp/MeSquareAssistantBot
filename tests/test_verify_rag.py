@@ -24,7 +24,7 @@ def _create_dummy_result(
     )
 
 
-def test_validate_results_success():
+def test_validate_results_success() -> None:
     """Verify that compliant results pass all Step 9 assertions."""
     results = [
         _create_dummy_result(0.85),
@@ -35,7 +35,7 @@ def test_validate_results_success():
     validate_results(results, latency_ms=12.5, max_latency_ms=25.0)
 
 
-def test_validate_results_fails_min_count():
+def test_validate_results_fails_min_count() -> None:
     """Fails if fewer than 3 chunks returned."""
     results = [
         _create_dummy_result(0.85),
@@ -45,7 +45,7 @@ def test_validate_results_fails_min_count():
         validate_results(results, latency_ms=10.0, max_latency_ms=25.0)
 
 
-def test_validate_results_fails_low_similarity():
+def test_validate_results_fails_low_similarity() -> None:
     """Fails if top similarity is below 0.70."""
     results = [
         _create_dummy_result(0.68),
@@ -56,7 +56,7 @@ def test_validate_results_fails_low_similarity():
         validate_results(results, latency_ms=10.0, max_latency_ms=25.0)
 
 
-def test_validate_results_fails_domain_mismatch():
+def test_validate_results_fails_domain_mismatch() -> None:
     """Fails if top chunk is completely outside lipid/dietary clinical domain."""
     results = [
         _create_dummy_result(
@@ -72,7 +72,7 @@ def test_validate_results_fails_domain_mismatch():
         validate_results(results, latency_ms=10.0, max_latency_ms=25.0)
 
 
-def test_validate_results_fails_empty_content():
+def test_validate_results_fails_empty_content() -> None:
     """Fails if any chunk has empty or near-empty content."""
     results = [
         _create_dummy_result(0.85),
@@ -83,7 +83,7 @@ def test_validate_results_fails_empty_content():
         validate_results(results, latency_ms=10.0, max_latency_ms=25.0)
 
 
-def test_validate_results_fails_corrupted_text():
+def test_validate_results_fails_corrupted_text() -> None:
     """Fails if any chunk contains replacement character or empty content."""
     corrupted_content = "This clinical text has replacement \xef\xbf\xbd characters and invalid formatting inside the paragraph."
     results = [
@@ -95,7 +95,7 @@ def test_validate_results_fails_corrupted_text():
         validate_results(results, latency_ms=10.0, max_latency_ms=25.0)
 
 
-def test_validate_results_fails_latency_budget():
+def test_validate_results_fails_latency_budget() -> None:
     """Fails if query latency exceeds budget."""
     results = [
         _create_dummy_result(0.85),
