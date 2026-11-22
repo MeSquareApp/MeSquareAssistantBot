@@ -6,7 +6,7 @@ for common cardiovascular and lipid-lowering pharmacological agents.
 
 import re
 
-from schemas import GraphState
+from app.chat.schemas import GraphState
 
 CARDIO_DRUGS: tuple[str, ...] = (
     # Statins

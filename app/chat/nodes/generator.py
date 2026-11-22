@@ -9,14 +9,14 @@ import os
 from openai import OpenAI
 from openai.types.chat import ChatCompletionMessageParam
 
-from app.core.config import settings
-from schemas import (
+from app.chat.schemas import (
     GraphState,
     LabAnchors,
     RetrievedChunk,
     RiskProfile,
     WearablesSummary,
 )
+from app.core.config import settings
 
 SYSTEM_PROMPT = """You are MeSquare's Cardiovascular Lifestyle Assistant.
 You provide evidence-based lifestyle, nutrition, and habit guidance for cardiovascular health.

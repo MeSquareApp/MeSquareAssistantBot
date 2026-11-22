@@ -4,8 +4,8 @@ Performs secondary gate checks against output text to guarantee no pharmaceutica
 prescriptions were hallucinated by the generator, and structures citation metadata.
 """
 
-from nodes.medication_gate import DRUG_PATTERN, MEDICATION_DISCLAIMER
-from schemas import CitationItem, GraphState, RetrievedChunk
+from app.chat.nodes.medication_gate import DRUG_PATTERN, MEDICATION_DISCLAIMER
+from app.chat.schemas import CitationItem, GraphState, RetrievedChunk
 
 
 def verify_output(state: GraphState) -> dict[str, object]:

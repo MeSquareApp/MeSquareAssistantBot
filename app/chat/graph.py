@@ -7,12 +7,12 @@ twin-grounded generation, and citation verification into a compiled state graph.
 from langgraph.graph import END, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
-from nodes.generator import generate_response
-from nodes.medication_gate import check_medication
-from nodes.retriever import retrieve_guidelines
-from nodes.topic_detector import detect_topic
-from nodes.verifier import verify_output
-from schemas import GraphState
+from app.chat.nodes.generator import generate_response
+from app.chat.nodes.medication_gate import check_medication
+from app.chat.nodes.retriever import retrieve_guidelines
+from app.chat.nodes.topic_detector import detect_topic
+from app.chat.nodes.verifier import verify_output
+from app.chat.schemas import GraphState
 
 GraphApp = CompiledStateGraph[GraphState, None, GraphState, GraphState]
 

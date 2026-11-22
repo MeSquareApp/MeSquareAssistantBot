@@ -6,8 +6,8 @@ gating, and guideline-grounded generation with citation extraction.
 
 import pytest
 
-from graph import app
-from schemas import (
+from app.chat.graph import app
+from app.chat.schemas import (
     DigitalTwinContext,
     GraphState,
     LabAnchors,

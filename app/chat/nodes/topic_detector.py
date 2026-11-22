@@ -8,8 +8,8 @@ import os
 
 from openai import OpenAI, OpenAIError
 
+from app.chat.schemas import GraphState
 from app.core.config import settings
-from schemas import GraphState
 
 TOPIC_PROMPT = """You are a medical triage classifier for a cardiovascular digital twin app.
 Classify the user inquiry into exactly one category:

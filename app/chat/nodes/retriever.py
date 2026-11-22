@@ -11,9 +11,9 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 
+from app.chat.schemas import GraphState, RetrievedChunk
 from app.core.config import settings
-from models import GuidelineChunk
-from schemas import GraphState, RetrievedChunk
+from app.model.guideline import GuidelineChunk
 
 
 def _build_database_url() -> str:
