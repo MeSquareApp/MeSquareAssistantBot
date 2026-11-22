@@ -1,7 +1,3 @@
-import os
-from pathlib import Path
-
-from dotenv import load_dotenv
 from langchain_core.messages import (
     AIMessage,
     HumanMessage,
@@ -11,15 +7,14 @@ from langchain_core.messages import (
 from langchain_core.messages.utils import count_tokens_approximately
 from langchain_openai import ChatOpenAI
 
-from mesquareassistantbot.prompts import EMERGENCY_REPLY, OFF_TOPIC_REPLY, SYSTEM_PROMPT
-from mesquareassistantbot.topic_guard import TopicLabel, classify
-
-load_dotenv(Path(__file__).resolve().parents[2] / ".env")
+from app.core.config import settings
+from app.llm.prompts import EMERGENCY_REPLY, OFF_TOPIC_REPLY, SYSTEM_PROMPT
+from app.llm.topic_guard import TopicLabel, classify
 
 llm = ChatOpenAI(
-    model=os.environ["ARC_LLM_MODEL"],
-    api_key=os.environ["ARC_LLM_KEY"],
-    base_url=os.environ["ARC_LLM_ENDPOINT"],
+    model=settings.arc_llm_model,
+    api_key=settings.arc_llm_key,
+    base_url=settings.arc_llm_endpoint,
     temperature=0.7,
     max_tokens=1000,
 )
@@ -56,10 +51,9 @@ cli_history: list[Message] = new_history()
 
 
 def context_limit() -> int | None:
-    override = os.environ.get("ARC_LLM_CONTEXT_TOKENS")
-    if override:
-        return int(override)
-    return CONTEXT_TOKENS.get(os.environ["ARC_LLM_MODEL"])
+    if settings.arc_llm_context_tokens:
+        return settings.arc_llm_context_tokens
+    return CONTEXT_TOKENS.get(settings.arc_llm_model)
 
 
 def token_report(message: Message, history: list[Message]) -> str | None:

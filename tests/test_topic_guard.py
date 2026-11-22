@@ -3,9 +3,9 @@ from unittest.mock import MagicMock
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 
-from mesquareassistantbot import chatbot, topic_guard
-from mesquareassistantbot.prompts import EMERGENCY_REPLY, OFF_TOPIC_REPLY
-from mesquareassistantbot.topic_guard import TopicDecision, TopicLabel
+from app.llm import chatbot, topic_guard
+from app.llm.prompts import EMERGENCY_REPLY, OFF_TOPIC_REPLY
+from app.llm.topic_guard import TopicDecision, TopicLabel
 
 
 @pytest.fixture
