@@ -8,7 +8,7 @@ import os
 
 from openai import OpenAI, OpenAIError
 
-from app.chat.schemas import GraphState
+from app.chat.schemas import ChatMessage, GraphState
 from app.core.config import settings
 
 TOPIC_PROMPT = """You are a medical triage classifier for a cardiovascular digital twin app.
@@ -38,6 +38,10 @@ EMERGENCY_KEYWORDS: tuple[str, ...] = (
     "stroke",
     "heart attack",
     "call 911",
+    "face is drooping",
+    "speech is slurred",
+    "slurred speech",
+    "fainted",
 )
 
 
@@ -67,11 +71,27 @@ def detect_topic(state: GraphState) -> dict[str, object]:
             "citations": [],
         }
 
+    history_items = state.get("history", [])
+    context_prefix = ""
+    if history_items:
+        user_queries: list[str] = []
+        for item in history_items:
+            if isinstance(item, ChatMessage) and item.role == "user":
+                user_queries.append(item.content)
+            elif isinstance(item, dict) and item.get("role") == "user":
+                content = str(item.get("content", ""))
+                if content:
+                    user_queries.append(content)
+        if user_queries:
+            recent_context = " | ".join(user_queries[-2:])
+            context_prefix = f"Prior context: {recent_context}\n"
+
     client, model = _get_openai_client()
     try:
+        prompt_content = f"{context_prefix}{TOPIC_PROMPT.format(query=query)}"
         response = client.chat.completions.create(
             model=model,
-            messages=[{"role": "user", "content": TOPIC_PROMPT.format(query=query)}],
+            messages=[{"role": "user", "content": prompt_content}],
             temperature=0.0,
             max_tokens=500,
         )

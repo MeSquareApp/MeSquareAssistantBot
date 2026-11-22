@@ -8,9 +8,13 @@ from langchain_core.messages.utils import count_tokens_approximately
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
+from app.chat.nodes.topic_detector import (
+    EMERGENCY_DISCLAIMER,
+    OFF_TOPIC_REFUSAL,
+    detect_topic,
+)
 from app.core.config import settings
-from app.llm.prompts import EMERGENCY_REPLY, OFF_TOPIC_REPLY, SYSTEM_PROMPT
-from app.llm.topic_guard import TopicLabel, classify
+from app.llm.prompts import SYSTEM_PROMPT
 
 llm = ChatOpenAI(
     model=settings.arc_llm_model,
@@ -36,11 +40,6 @@ CONTEXT_TOKENS = {
     "DeepSeek-V4.1-Flash": 1_048_576,
     "DeepSeek-V4.1-Flash-thinking-low": 1_048_576,
     "DeepSeek-V4.1-Flash-thinking-max": 1_048_576,
-}
-
-CANNED_REPLIES = {
-    TopicLabel.OFF_TOPIC: OFF_TOPIC_REPLY,
-    TopicLabel.EMERGENCY: EMERGENCY_REPLY,
 }
 
 
@@ -85,12 +84,17 @@ def token_report(message: Message, history: list[Message]) -> str | None:
 def chat_with_bot(user_input: str, history: list[Message] | None = None) -> str:
     if history is None:
         history = cli_history
-    decision = classify(user_input, history)
+    decision = detect_topic({"query": user_input})
     history.append(HumanMessage(content=user_input))
-    canned = CANNED_REPLIES.get(decision.label)
-    if canned:
-        history.append(AIMessage(content=canned))
-        return canned
+    topic = decision.get("topic")
+    if topic == "emergency":
+        reply = str(decision.get("output_text", EMERGENCY_DISCLAIMER))
+        history.append(AIMessage(content=reply))
+        return reply
+    if topic == "off_topic":
+        reply = str(decision.get("output_text", OFF_TOPIC_REFUSAL))
+        history.append(AIMessage(content=reply))
+        return reply
     context = trim_messages(
         history,
         max_tokens=HISTORY_TOKEN_BUDGET,

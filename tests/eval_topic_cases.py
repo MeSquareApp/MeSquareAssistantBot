@@ -1,6 +1,6 @@
-"""Run labelled prompts through the real topic classifier and report accuracy.
+"""Run labelled prompts through the topic classifier and report accuracy.
 
-Calls the ARC endpoint, so it is not part of the pytest suite:
+Calls the ARC endpoint, so it is not part of the standard pytest suite:
     uv run python tests/eval_topic_cases.py
 """
 
@@ -11,9 +11,11 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from app.llm.topic_guard import TopicLabel, classify
+from app.chat.nodes.topic_detector import detect_topic
 
-ON, OFF, EMERGENCY = TopicLabel.ON_TOPIC, TopicLabel.OFF_TOPIC, TopicLabel.EMERGENCY
+ON = "cardiovascular_lifestyle"
+OFF = "off_topic"
+EMERGENCY = "emergency"
 
 CASES = [
     ("What is LDL cholesterol?", ON),
@@ -46,13 +48,12 @@ CASES = [
 def main() -> None:
     correct = 0
     for prompt, expected in CASES:
-        decision = classify(prompt, [])
-        ok = decision.label == expected
+        decision = detect_topic({"query": prompt, "history": []})
+        got = decision.get("topic")
+        ok = got == expected
         correct += ok
         mark = "ok  " if ok else "FAIL"
-        print(f"{mark} expected={expected:<9} got={decision.label:<9} {prompt!r}")
-        if not ok and hasattr(decision, "reason"):
-            print(f"     reason: {decision.reason}")
+        print(f"{mark} expected={expected:<25} got={got!s:<25} {prompt!r}")
     print(f"\nAccuracy: {correct}/{len(CASES)} ({correct / len(CASES):.0%})")
 
 
