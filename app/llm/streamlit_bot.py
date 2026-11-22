@@ -4,7 +4,14 @@ Integrates the compiled LangGraph clinical reasoning pipeline with interactive
 digital twin parameter controls, guardrail status alerts, and guideline citations.
 """
 
+import sys
+from pathlib import Path
 from typing import Literal
+
+# Ensure project root is in sys.path when executed directly by Streamlit
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 import streamlit as st
 
