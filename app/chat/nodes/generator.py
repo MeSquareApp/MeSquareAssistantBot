@@ -6,8 +6,9 @@ guidelines, dispatching to the configured reasoning model.
 
 import os
 
-from openai import OpenAI
-from openai.types.chat import ChatCompletionMessageParam
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from langchain_openai import ChatOpenAI
+from pydantic import SecretStr
 
 from app.chat.schemas import (
     GraphState,
@@ -35,13 +36,20 @@ OFFICIAL GUIDELINE EXCERPTS:
 """
 
 
-def _get_openai_client() -> tuple[OpenAI, str]:
-    """Resolve OpenAI-compatible generation client and target model."""
+def _get_chat_model() -> ChatOpenAI:
+    """Resolve configured OpenAI-compatible ChatOpenAI model instance."""
     api_key = os.getenv("OPENAI_API_KEY") or settings.arc_llm_key
     base_url = os.getenv("OPENAI_BASE_URL") or settings.arc_llm_endpoint
-    client = OpenAI(api_key=api_key, base_url=base_url)
     model = os.getenv("OPENAI_MODEL") or settings.arc_llm_model
-    return client, model
+    max_tokens = int(os.getenv("GENERATOR_MAX_TOKENS", "1500"))
+
+    return ChatOpenAI(
+        model=model,
+        api_key=SecretStr(api_key),
+        base_url=base_url,
+        temperature=0.2,
+        max_completion_tokens=max_tokens,
+    )
 
 
 def format_twin_context(state: GraphState) -> str:
@@ -88,35 +96,30 @@ def generate_response(state: GraphState) -> dict[str, object]:
     chunks = state.get("retrieved_chunks", [])
     guidelines_str = format_guidelines(chunks)
 
-    messages: list[ChatCompletionMessageParam] = [
-        {
-            "role": "system",
-            "content": SYSTEM_PROMPT.format(
+    messages: list[BaseMessage] = [
+        SystemMessage(
+            content=SYSTEM_PROMPT.format(
                 twin_str=twin_str,
                 guidelines_str=guidelines_str,
-            ),
-        }
+            )
+        )
     ]
 
     for msg in state.get("history", [])[-4:]:
         if msg.role == "user":
-            messages.append({"role": "user", "content": msg.content})
+            messages.append(HumanMessage(content=msg.content))
         elif msg.role == "assistant":
-            messages.append({"role": "assistant", "content": msg.content})
+            messages.append(AIMessage(content=msg.content))
         elif msg.role == "system":
-            messages.append({"role": "system", "content": msg.content})
+            messages.append(SystemMessage(content=msg.content))
 
-    messages.append({"role": "user", "content": state.get("query", "")})
+    messages.append(HumanMessage(content=state.get("query", "")))
 
-    client, model = _get_openai_client()
-    response = client.chat.completions.create(
-        model=model,
-        messages=messages,
-        temperature=0.2,
-        max_tokens=int(os.getenv("GENERATOR_MAX_TOKENS", "1500")),
-    )
+    llm = _get_chat_model()
+    response = llm.invoke(messages)
 
-    choice_msg = response.choices[0].message
-    reasoning = getattr(choice_msg, "reasoning", "")
-    content = choice_msg.content or (str(reasoning) if reasoning else "")
+    content = str(response.content) if response.content else ""
+    if not content and "reasoning" in response.additional_kwargs:
+        content = str(response.additional_kwargs["reasoning"])
+
     return {"output_text": content}

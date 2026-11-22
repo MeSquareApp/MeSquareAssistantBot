@@ -1,8 +1,8 @@
 # FastAPI Project Rules
 
 ## Commands
-- Dev server: `uv run fastapi dev`
-- Prod server: `uv run fastapi run`
+- Dev server: `uv run fastapi dev --port 8001`
+- Prod server: `uv run fastapi run --port 8001`
 - Tests: `uv run pytest`
 
 ## Architecture & Routing

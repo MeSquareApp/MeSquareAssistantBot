@@ -1,15 +1,17 @@
 # MeSquareAssistantBot
 
-Health-education chatbot for biomarkers, lab results and cardiovascular health.
-Each message is first checked by a topic classifier: off-topic requests get a
-fixed refusal and possible emergencies get a "contact emergency services"
-reply, without calling the main model. The assistant is not a doctor and does
-not diagnose or prescribe.
+Health-education assistant service for biomarkers, lab results, and cardiovascular health. Built on FastAPI and LangGraph, this service integrates digital twin context, pgvector guideline retrieval, strict pharmaceutical and emergency guardrails, and real-time Server-Sent Events (SSE) streaming.
+
+The assistant is not a medical doctor and does not diagnose, prescribe, or adjust medications.
+
+---
 
 ## Requirements
 
 - Python 3.15+
 - [uv](https://docs.astral.sh/uv/)
+
+---
 
 ## Setup
 
@@ -27,107 +29,162 @@ ARC_LLM_MODEL=gpt-oss-120b
 EMBEDDING_MODEL=Qwen3-Embedding-4B
 
 # Optional
-ARC_LLM_CLASSIFIER_MODEL=   # model for topic check; defaults to ARC_LLM_MODEL
+ARC_LLM_CLASSIFIER_MODEL=   # model for topic triage; defaults to ARC_LLM_MODEL
 ARC_LLM_CONTEXT_TOKENS=     # context window size, if model is not in CONTEXT_TOKENS
+GENERATOR_MAX_TOKENS=1500   # maximum tokens generated per response
 ```
 
-## Phase 1: Clinical Guideline RAG Knowledge Base
+---
 
-Phase 1 establishes the vector knowledge base for cardiovascular guidelines before building conversational agents in Phase 2.
+## Architectural Milestones
 
-### 1. Database Migrations
+### Phase 1: Clinical Guideline RAG Knowledge Base
 
-Apply database migrations to Supabase to create the `rag` schema, `rag.guideline_chunks` table with `halfvec(2560)`, and the HNSW cosine similarity index:
+Establishes the vector knowledge base in Supabase PostgreSQL:
+1. **Migrations**: `supabase db push` creates the `rag.guideline_chunks` table with `halfvec(2560)` and HNSW index.
+2. **Ingestion**: `uv run python scripts/ingest_guidelines.py` processes PDFs via Docling, chunks by headings, generates embeddings, and upserts rows.
+3. **Verification**: `uv run python scripts/verify_rag.py` checks latency, similarity thresholds, and text integrity.
+
+### Phase 2: LangGraph Reasoning Pipeline & Clinical Guardrails
+
+Assembles deterministic and LLM safety checks in `app/chat/graph.py`:
+- **Topic Detector**: Fast emergency symptom triage and off-topic refusals.
+- **Medication Gate**: Deterministic pharmaceutical regex blocking prescription requests.
+- **Retriever**: Hybrid cosine pgvector search across AHA/ACC clinical guidelines.
+- **Generator**: Twin-grounded clinical response synthesizer using `ChatOpenAI`.
+- **Verifier**: Post-generation check preventing hallucinated drug names and building citations.
+
+### Phase 3A: FastAPI SSE Streaming Service
+
+Exposes high-throughput, non-blocking HTTP endpoints for MeSquare backend integration:
+- `POST /internal/v1/chat/stream`: Streams execution events (`status`, `token`, `citations`, `done`, `error`) via Server-Sent Events (`text/event-stream`).
+- `GET /health`: Liveness probe for load balancers and container orchestrators.
+- `GET /health/db`: Database connectivity readiness probe.
+
+---
+
+## How to Run
+
+### 1. FastAPI Backend API
+
+Start the local development server (configured on port `8001` to avoid conflicting with services on `8000`):
 
 ```bash
-supabase db push
+uv run fastapi dev --port 8001
 ```
 
-### 2. Ingest Guidelines
-
-Place clinical guideline PDFs in `data/guidelines/`. Then run the ingestion script:
+Or run directly with Uvicorn:
 
 ```bash
-uv run python scripts/ingest_guidelines.py
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
 ```
 
-The script runs a 4-step pipeline:
-1. **Extract**: Converts PDF documents into Markdown using Docling.
-2. **Chunk**: Slices Markdown into ~600-token chunks along heading boundaries.
-3. **Embed**: Generates 2,560-dimensional embeddings using ARC VT's `Qwen3-Embedding-4B`.
-4. **Load**: Upserts chunks and vectors into `rag.guideline_chunks` in Supabase Postgres.
-
-Use `--dry-run` to test extraction and chunking without database writes:
+For production deployment:
 
 ```bash
-uv run python scripts/ingest_guidelines.py --dry-run
+uv run fastapi run --port 8001
 ```
 
-### 3. Verify Knowledge Base (Step 9)
+Interactive API documentation will be available at:
+- **Swagger UI**: [http://localhost:8001/docs](http://localhost:8001/docs)
+- **ReDoc**: [http://localhost:8001/redoc](http://localhost:8001/redoc)
 
-Run the verification script to prove that storage, embeddings, HNSW indexes, and queries meet all seven acceptance criteria:
+---
+
+### 2. Live SSE Streaming Request (curl)
+
+Send a streaming chat request to verify Server-Sent Events in real time:
 
 ```bash
-uv run python scripts/verify_rag.py
+curl -N -X POST http://localhost:8001/internal/v1/chat/stream \
+  -H "Content-Type: application/json" \
+  -d '{
+    "conversation_id": "conv_123",
+    "message_id": "msg_456",
+    "query": "What dietary fiber helps lower LDL cholesterol?"
+  }'
 ```
 
-The script checks:
-- Zero connection errors to Supabase pooler on port 6543.
-- Minimum of 3 retrieved chunks.
-- Cosine similarity score >= 0.70 for top result.
-- Clinical domain relevance matching dietary or lipid guidelines.
-- Markdown text integrity with no binary garbage or empty content.
-- Database query execution time under 25 ms.
-- Clean exit code (code 0 on success, code 1 on failure).
+Example streaming response output:
 
-## Run
+```text
+event: token
+data: {"token": "Sol"}
 
-FastAPI backend API:
+event: token
+data: {"token": "uble"}
 
-```bash
-uv run fastapi dev
+event: token
+data: {"token": " fiber"}
+
+...
+
+event: citations
+data: {"citations": [{"chunk_id": "...", "guideline_title": "...", "section_title": "...", "excerpt": "..."}]}
+
+event: done
+data: {"status": "success"}
 ```
 
-Web UI (Streamlit):
+---
 
+### 3. Alternative Interfaces
+
+#### Web UI (Streamlit)
 ```bash
 uv run streamlit run app/llm/streamlit_bot.py
 ```
 
-Terminal chat (type `exit` to quit):
-
+#### Terminal Interactive Chat
 ```bash
 uv run python -m app.llm.chatbot
 ```
 
-## Test
+---
 
-Unit tests (no API calls):
+## Testing & Quality Assurance
+
+Run the test suite and quality gates:
 
 ```bash
+# 1. Run all unit and integration tests
 uv run pytest
+
+# 2. Run only the FastAPI SSE streaming API test suite
+uv run pytest tests/test_streaming_api.py -v
+
+# 3. Static type checking (zero errors on strict mode)
+uv run mypy --strict .
+
+# 4. Code formatting and linting
+uv run ruff check .
+uv run ruff format --check .
 ```
 
-Topic classifier accuracy against the live endpoint (run after changing
-`prompts.py`):
+---
 
-```bash
-uv run python tests/eval_topic_cases.py
-```
+## Project Layout
 
-## Project layout
-
-| File | Purpose |
+| Path | Purpose |
 |---|---|
-| `app/main.py` | FastAPI application entrypoint |
-| `app/api/db_health.py` | Database health check router |
+| `main.py` | Root FastAPI app re-export for standard ASGI servers |
+| `app/main.py` | FastAPI application initialization, CORS, lifespan, and routing |
+| `app/api/chat.py` | SSE streaming endpoint (`/internal/v1/chat/stream`) |
+| `app/api/health.py` | Liveness (`/health`) and database readiness (`/health/db`) probes |
+| `app/api/db_health.py` | Backward-compatible database health router |
 | `app/core/db.py` | Async SQLAlchemy engine and session dependency |
-| `app/core/config.py` | Pydantic settings and environment config |
+| `app/core/config.py` | Pydantic settings and environment variable parser |
+| `app/chat/graph.py` | LangGraph state graph wiring and node routing |
+| `app/chat/schemas.py` | Pydantic data models (Digital Twin snapshot, ChatRequest, GraphState) |
+| `app/chat/nodes/topic_detector.py` | Node 1: Emergency triage and topic classification |
+| `app/chat/nodes/medication_gate.py` | Node 2: Pharmaceutical drug gate and prescription intent block |
+| `app/chat/nodes/retriever.py` | Node 3: Hybrid pgvector guideline retriever |
+| `app/chat/nodes/generator.py` | Node 4: Twin-grounded guideline response generator (`ChatOpenAI`) |
+| `app/chat/nodes/verifier.py` | Node 5: Clinical safety validation and citation generator |
 | `app/model/guideline.py` | GuidelineChunk SQLAlchemy ORM model with `halfvec(2560)` |
-| `app/utils/pdf_chunk_handler.py` | Docling extraction, token chunking, and embedding pipeline |
-| `app/llm/prompts.py` | System prompt, classifier prompt and fixed replies |
-| `app/chat/nodes/topic_detector.py` | Topic classifier and emergency triage node |
-| `app/llm/chatbot.py` | Main model, history trimming, token report, terminal chat |
-| `app/llm/streamlit_bot.py` | Streamlit web UI |
-| `scripts/ingest_guidelines.py` | CLI orchestrator for guideline PDF ingestion |
-| `scripts/verify_rag.py` | Step 9 RAG retrieval verification script |
+| `app/utils/pdf_chunk_handler.py` | Docling extraction, heading-based chunker, and embedding generator |
+| `scripts/ingest_guidelines.py` | Ingestion CLI for processing clinical PDFs into Supabase |
+| `scripts/verify_rag.py` | Database retrieval verification script |
+| `tests/test_streaming_api.py` | Automated HTTP integration tests for SSE streaming and health checks |
+| `tests/test_workflow.py` | LangGraph semantic pipeline and guardrail test suite |
+| `tests/test_topic_detector.py` | Topic classification and emergency triage test suite |
